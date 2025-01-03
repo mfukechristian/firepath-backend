@@ -5,9 +5,14 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { MongoDBAtlasVectorSearch } from "@langchain/mongodb";
 import { ChatGroq } from "@langchain/groq";
 import { TavilySearchResults } from "@langchain/community/tools/tavily_search";
-import { getVisaGeneralAdviceTemplate } from "../utils/templates.js";
+import { 
+  getVisaGeneralAdviceTemplate, 
+  getTouristVisaAdviceTemplate, 
+  getWorkVisaAdviceTemplate, 
+  getStudyVisaAdviceTemplate, 
+  getPermanentResidencyAdviceTemplate 
+} from "../utils/templates.js";
 
-const question = "how can become a permentent resident in South Africa?";
 const client = new MongoClient(process.env.MONGO_URI || "");
 const collection = client
   .db(process.env.MONGO_DB_NAME)
@@ -35,19 +40,109 @@ const tool = new TavilySearchResults({
   apiKey: process.env.TAVILY_API_KEY,
 });
 
-const embeddingResults = await vectorStore.similaritySearch(question, 1);
-const combinedEmbeddingResults = embeddingResults
-  .map((doc) => doc.pageContent)
-  .join("\n");
+// Endpoint for Tourist Visa Advice
+// @desc    Get tourist visa advice
+// @route   POST /api/tourist-visa-advice
+// @access  Public
+const getTouristVisaAdvice = async (req, res) => {
+  const { country, duration } = req.body;
 
-const webSearchResults = await tool.invoke(question);
-const parsedWebResults = JSON.parse(webSearchResults);
-const combinedWebResults = parsedWebResults
-  .map((result) => result.content)
-  .join("\n");
+  try {
+    const embeddingResults = await vectorStore.similaritySearch(`how to get a tourist visa for ${country}`, 1);
+    const combinedEmbeddingResults = embeddingResults.map((doc) => doc.pageContent).join("\n");
 
-const result = await llm.invoke(
-  getVisaGeneralAdviceTemplate(combinedEmbeddingResults, combinedWebResults)
-);
+    const webSearchResults = await tool.invoke(`how to get a tourist visa for ${country}`);
+    const parsedWebResults = JSON.parse(webSearchResults);
+    const combinedWebResults = parsedWebResults.map((result) => result.content).join("\n");
 
-console.log(result.content);
+    const result = await llm.invoke(
+      getTouristVisaAdviceTemplate(combinedEmbeddingResults, combinedWebResults, country, duration)
+    );
+    res.json({ results: result.content });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Endpoint for Work Visa Advice
+// @desc    Get work visa advice
+// @route   POST /api/work-visa-advice
+// @access  Public
+const getWorkVisaAdvice = async (req, res) => {
+  const { jobOffer, country } = req.body;
+
+  try {
+    const embeddingResults = await vectorStore.similaritySearch(`how to get a work visa for ${country}`, 1);
+    const combinedEmbeddingResults = embeddingResults.map((doc) => doc.pageContent).join("\n");
+
+    const webSearchResults = await tool.invoke(`how to get a work visa for ${country}`);
+    const parsedWebResults = JSON.parse(webSearchResults);
+    const combinedWebResults = parsedWebResults.map((result) => result.content).join("\n");
+
+    const result = await llm.invoke(
+      getWorkVisaAdviceTemplate(combinedEmbeddingResults, combinedWebResults, jobOffer, country)
+    );
+    res.json({ results: result.content });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Endpoint for Study Visa Advice
+// @desc    Get study visa advice
+// @route   POST /api/study-visa-advice
+// @access  Public
+const getStudyVisaAdvice = async (req, res) => {
+  const { country, admissionLetter } = req.body;
+
+  try {
+    const embeddingResults = await vectorStore.similaritySearch(`how to get a study visa for ${country}`, 1);
+    const combinedEmbeddingResults = embeddingResults.map((doc) => doc.pageContent).join("\n");
+
+    const webSearchResults = await tool.invoke(`how to get a study visa for ${country}`);
+    const parsedWebResults = JSON.parse(webSearchResults);
+    const combinedWebResults = parsedWebResults.map((result) => result.content).join("\n");
+
+    const result = await llm.invoke(
+      getStudyVisaAdviceTemplate(combinedEmbeddingResults, combinedWebResults, country, admissionLetter)
+    );
+    res.json({ results: result.content });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Endpoint for Permanent Residency Advice
+// @desc    Get permanent residency advice
+// @route   POST /api/permanent-residency-advice
+// @access  Public
+const getPermanentResidencyAdvice = async (req, res) => {
+  const { country, status } = req.body;
+
+  try {
+    const embeddingResults = await vectorStore.similaritySearch(`how to apply for permanent residency in ${country}`, 1);
+    const combinedEmbeddingResults = embeddingResults.map((doc) => doc.pageContent).join("\n");
+
+    const webSearchResults = await tool.invoke(`how to apply for permanent residency in ${country}`);
+    const parsedWebResults = JSON.parse(webSearchResults);
+    const combinedWebResults = parsedWebResults.map((result) => result.content).join("\n");
+
+    const result = await llm.invoke(
+      getPermanentResidencyAdviceTemplate(combinedEmbeddingResults, combinedWebResults, country, status)
+    );
+    res.json({ results: result.content });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export {
+  getTouristVisaAdvice,
+  getWorkVisaAdvice,
+  getStudyVisaAdvice,
+  getPermanentResidencyAdvice,
+};
